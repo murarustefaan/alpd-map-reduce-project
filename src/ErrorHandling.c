@@ -5,6 +5,10 @@
 #include <unistd.h>
 #include "../defs/ErrorHandling.h"
 
+/**
+ * Signal handler to use for debugging purposes
+ * @param sig The signal to handle
+ */
 void handler(int sig) {
     void *array[10];
     size_t size;

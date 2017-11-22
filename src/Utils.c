@@ -2,6 +2,10 @@
 #include <sys/time.h>
 #include <stdlib.h>
 
+/**
+ * Get the current timestamp in microseconds in int64 format
+ * @return The current timestamp
+ */
 int64_t getCurrentTimestamp(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);

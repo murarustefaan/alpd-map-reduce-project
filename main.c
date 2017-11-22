@@ -159,9 +159,11 @@ int main(int argc, char ** argv) {
                         }
 
                         numberOfWords++;
+
                         free(word);
                         free(fileToWrite);
                         free(pathToWrite);
+
                         if (written != NULL) {
                             fclose(written);
                         }

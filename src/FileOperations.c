@@ -4,6 +4,11 @@
 #include <stdbool.h>
 #include "../defs/FileOperations.h"
 
+/**
+ * Get the number of files in a directory and their corresponding file names
+ * @param directoryName The path of the directory for which to get the files
+ * @return A struct containing the file names and the number of files
+ */
 struct DirectoryFiles getFileNamesForDirectory(char * directoryName) {
     struct DirectoryFiles df;
     df.numberOfFiles = scandir(directoryName, &df.filenames, 0, alphasort);
@@ -15,6 +20,12 @@ struct DirectoryFiles getFileNamesForDirectory(char * directoryName) {
     return df;
 }
 
+/**
+ * Create a file path by concatenating the 2 given paths into a single one
+ * @param directoryName The first part of the path
+ * @param fileName The other part of the path
+ * @return The joined path
+ */
 char * buildFilePath(char * directoryName, char * fileName) {
     char * filePath = (char *)malloc(strlen(directoryName) + strlen(fileName) + 2);
     sprintf(filePath, "%s/%s", directoryName, fileName);
@@ -22,6 +33,11 @@ char * buildFilePath(char * directoryName, char * fileName) {
     return filePath;
 }
 
+/**
+ * Check if a given character is either a letter or a number
+ * @param c The character to check
+ * @return Return true or false, depending whether the character is or isn't a letter or a number
+ */
 bool isLetterOrNumber (char c) {
     if ((c >= 'a' && c <= 'z') ||
         (c >= 'A' && c <= 'Z') ||
@@ -32,6 +48,12 @@ bool isLetterOrNumber (char c) {
     return false;
 }
 
+/**
+ * Read and word from an open file stream
+ * A word means a group of letters Aa-Zz or numbers 0-9
+ * @param file The file stream to read from
+ * @return A pointer to the read word
+ */
 char * readWord(FILE * file, char * filename) {
     char temp[255] = { '\0' };
     int i = 0;
@@ -58,6 +80,11 @@ char * readWord(FILE * file, char * filename) {
     return word;
 }
 
+/**
+ * Creates a file and return a pointer to it
+ * @param filename The name of the file to be created
+ * @return A pointer to the created file or NULL in case it could not be created
+ */
 FILE * createFile (char * filename) {
     FILE * f = fopen(filename, "w");
 
