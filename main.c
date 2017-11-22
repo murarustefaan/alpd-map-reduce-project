@@ -4,8 +4,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <mpi.h>
-#include <dirent.h>
 
+#include "defs/ErrorHandling.h"
 #include "defs/FileOperations.h"
 #include "defs/Utils.h"
 
@@ -17,8 +17,11 @@
 
 #define FILES_DIRECTORY "input-files"
 #define TEMP_DIRNAME "/mnt/alpd/_temp"
+#define DIRECT_INDEX_LOCATION "/mnt/alpd/direct-index"
 
 int main(int argc, char ** argv) {
+    signal(SIGSEGV, handler);
+
     MPI_Init(&argc, &argv);
 
     int NUMBER_OF_PROCESSES;
@@ -31,14 +34,15 @@ int main(int argc, char ** argv) {
 
     if (CURRENT_RANK == ROOT) {
         // retrieve the list of files from the directory
-        char ** files = getFileNamesForDirectory(FILES_DIRECTORY);
-        int numberOfFiles = getNumberOfFilesInDirectory(FILES_DIRECTORY);
+        struct DirectoryFiles df = getFileNamesForDirectory(FILES_DIRECTORY);
         int fileIndex;
         int availableWorkers = NUMBER_OF_PROCESSES - 1;
 
         int tempDirectoryCreated = mkdir(TEMP_DIRNAME, 0777);
-        if (tempDirectoryCreated == -1) {
-            printf("_temp directory could not be created!\n");
+        int directIndexDirectoryCreated = mkdir(DIRECT_INDEX_LOCATION, 0777);
+        if (tempDirectoryCreated == -1 ||
+            directIndexDirectoryCreated == -1) {
+            printf("_temp or direct-index directory could not be created!\n");
             for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
                 printf("SENDING KILL TO %d\n", processRank);
                 MPI_Send(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD);
@@ -47,7 +51,9 @@ int main(int argc, char ** argv) {
             return 0;
         }
 
-        for(fileIndex = 0; fileIndex < numberOfFiles; fileIndex++) {
+
+
+        for(fileIndex = 0; fileIndex < df.numberOfFiles; fileIndex++) {
             char * processedFile = (char *)malloc(FILENAME_MAX);
             MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
@@ -58,12 +64,13 @@ int main(int argc, char ** argv) {
             printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
 
             switch (receivedTag) {
+                default:
                 case TASK_ACK:
                 case TASK_INDEX_FILE: {
-                    printf("Sending file to be word-processed \"%s\"\n", files[fileIndex]);
+                    printf("Sending file to be word-processed \"%s\"\n", df.filenames[fileIndex]->d_name);
 
-                    MPI_Send(files[fileIndex],
-                             strlen(files[fileIndex]) + 1,
+                    MPI_Send(df.filenames[fileIndex]->d_name,
+                             strlen(df.filenames[fileIndex]->d_name) + 1,
                              MPI_CHAR,
                              destination,
                              TASK_PROCESS_WORDS,
@@ -108,7 +115,7 @@ int main(int argc, char ** argv) {
 
     if (CURRENT_RANK != ROOT) {
         int tag = 0;
-        char * fileName = (char *)malloc(FILENAME_MAX);
+        char * fileName;
         MPI_Send(NULL, 0, MPI_CHAR, ROOT, TASK_ACK, MPI_COMM_WORLD);
 
         do {
@@ -144,7 +151,7 @@ int main(int argc, char ** argv) {
                             sprintf(fileToWrite, "%s.%s", word, timestamp);
                             pathToWrite = buildFilePath(tempDirName, fileToWrite);
 
-                            written = fopen(pathToWrite, "w");
+                            written = createFile(pathToWrite);
 
                             if (written != NULL) {
                                 break;
@@ -176,7 +183,60 @@ int main(int argc, char ** argv) {
                     break;
                 }
                 case TASK_INDEX_FILE: {
+                    char * directoryPath = buildFilePath(TEMP_DIRNAME, fileName);
+                    struct DirectoryFiles df = getFileNamesForDirectory(directoryPath);
+                    if (df.numberOfFiles == 0) {
+                        printf("No words found in directory %s\n", directoryPath);
+                        free(directoryPath);
+
+                        MPI_Send(fileName,
+                                 strlen(fileName) + 1,
+                                 MPI_CHAR,
+                                 ROOT,
+                                 TASK_INDEX_FILE,
+                                 MPI_COMM_WORLD);
+                        break;
+                    }
+
+                    char * directIndexFilePath = buildFilePath(DIRECT_INDEX_LOCATION, fileName);
+                    fclose(createFile(directIndexFilePath));
+
+                    FILE * file = fopen(directIndexFilePath, "a");
+                    if (!file) {
+                        printf("Could not write direct-index file %s\n", directIndexFilePath);
+
+                        MPI_Send(fileName,
+                                 strlen(fileName) + 1,
+                                 MPI_CHAR,
+                                 ROOT,
+                                 TASK_INDEX_FILE,
+                                 MPI_COMM_WORLD);
+                        break;
+                    }
+
+                    char * word;
+                    char * lastWord = strtok(df.filenames[0]->d_name, ".");
+                    int wordCount = 1;
+
+                    for(int i = 1; i < df.numberOfFiles; i++) {
+                        word = strtok(df.filenames[i]->d_name, ".");
+
+                        if (strcmp(lastWord, word) == 0) {
+                            wordCount++;
+                        } else {
+                            printf("%s, %d\n", lastWord, wordCount);
+
+                            fprintf(file, "%s %d\n", lastWord, wordCount);
+
+                            lastWord = word;
+                            wordCount = 1;
+                        }
+                    }
+
                     printf("Indexed file! %s\n", fileName);
+
+                    fclose(file);
+
                     MPI_Send(fileName,
                              strlen(fileName) + 1,
                              MPI_CHAR,

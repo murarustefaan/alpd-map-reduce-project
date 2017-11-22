@@ -1,12 +1,14 @@
 #ifndef MAPREDUCE_V2_FILEOPERATIONS_H
 #define MAPREDUCE_V2_FILEOPERATIONS_H
 
-char ** getFileNamesForDirectory(char * directoryName);
+#include "../defs/DirectoryFiles.h"
 
-int getNumberOfFilesInDirectory(char * directoryName);
+struct DirectoryFiles getFileNamesForDirectory(char * directoryName);
 
 char * buildFilePath(char * directoryName, char * fileName);
 
 char * readWord(FILE * file, char * filename);
+
+FILE * createFile(char * filename);
 
 #endif

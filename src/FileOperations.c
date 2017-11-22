@@ -1,57 +1,18 @@
-#include <dirent.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include "../defs/FileOperations.h"
 
-char ** getFileNamesForDirectory(char * directoryName) {
-    char ** filenames = (char **) malloc(getNumberOfFilesInDirectory(directoryName) * sizeof(char*));
+struct DirectoryFiles getFileNamesForDirectory(char * directoryName) {
+    struct DirectoryFiles df;
+    df.numberOfFiles = scandir(directoryName, &df.filenames, 0, alphasort);
 
-    printf("%s\n", directoryName);
+    // The first 2 folders are '.' and '..' and we do not want those
+    df.filenames += 2;
+    df.numberOfFiles -= 2;
 
-    DIR * directory = opendir(directoryName);
-    struct dirent * temp;
-
-    int fileCount = 0;
-
-    if (directory != NULL) {
-        while ((temp = readdir(directory)) != NULL) {
-            // Exclude the . and .. fislepaths
-            if (strcmp(temp->d_name, ".") == 0 ||
-                strcmp(temp->d_name, "..") == 0) {
-                temp = readdir(directory);
-                continue;
-            }
-
-            filenames[fileCount] = (char*)malloc(strlen(temp->d_name) + 1);
-            strcpy(filenames[fileCount++], temp->d_name);
-            printf("%s\n", temp->d_name);
-        }
-    }
-
-    closedir(directory);
-    return filenames;
-}
-
-int getNumberOfFilesInDirectory(char * directoryName) {
-    DIR * directory = opendir(directoryName);
-    struct dirent * temp;
-
-    int fileCount = 0;
-    if (directory != NULL) {
-        while ((temp = readdir(directory)) != NULL) {
-            if (strcmp(temp->d_name, ".") == 0 ||
-                strcmp(temp->d_name, "..") == 0) {
-                temp = readdir(directory);
-                continue;
-            }
-
-            fileCount++;
-        }
-    }
-
-    closedir(directory);
-    return fileCount;
+    return df;
 }
 
 char * buildFilePath(char * directoryName, char * fileName) {
@@ -95,4 +56,15 @@ char * readWord(FILE * file, char * filename) {
     strcpy(word, temp);
 
     return word;
+}
+
+FILE * createFile (char * filename) {
+    FILE * f = fopen(filename, "w");
+
+    if (!f) {
+        printf("Could not write file with name %s\n", filename);
+        return NULL;
+    }
+
+    return f;
 }

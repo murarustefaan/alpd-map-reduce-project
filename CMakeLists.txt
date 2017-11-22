@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD 99)
 
 set(MPIEXEC "mpirun")
 
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
+
 message(STATUS "${MPI_C_LIBRARIES}")
 
 find_package(MPI REQUIRED)
@@ -14,7 +16,7 @@ endif()
 
 include_directories(${MPI_INCLUDE_PATH})
 
-set(SOURCE_FILES main.c src/FileOperations.c defs/FileOperations.h src/Utils.c defs/Utils.h)
+set(SOURCE_FILES main.c src/FileOperations.c defs/FileOperations.h src/Utils.c defs/Utils.h defs/DirectoryFiles.h defs/ErrorHandling.h src/ErrorHandling.c)
 add_executable(MapReduce_V2 ${SOURCE_FILES})
 
 target_link_libraries(MapReduce_V2 ${MPI_LIBRARIES})
