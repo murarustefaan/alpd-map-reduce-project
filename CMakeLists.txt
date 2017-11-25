@@ -16,7 +16,7 @@ endif()
 
 include_directories(${MPI_INCLUDE_PATH})
 
-set(SOURCE_FILES main.c src/FileOperations.c defs/FileOperations.h src/Utils.c defs/Utils.h defs/DirectoryFiles.h defs/ErrorHandling.h src/ErrorHandling.c defs/MapReduceOperation.h)
+set(SOURCE_FILES main.c src/FileOperations.c defs/FileOperations.h src/Utils.c defs/Utils.h defs/DirectoryFiles.h defs/ErrorHandling.h src/ErrorHandling.c defs/MapReduceOperation.h src/MapReduceOperation.c)
 add_executable(MapReduce_V2 ${SOURCE_FILES})
 
 target_link_libraries(MapReduce_V2 ${MPI_LIBRARIES})

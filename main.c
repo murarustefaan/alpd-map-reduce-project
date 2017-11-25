@@ -8,6 +8,10 @@
 #include "defs/ErrorHandling.h"
 #include "defs/FileOperations.h"
 #include "defs/Utils.h"
+#include "defs/MapReduceOperation.h"
+
+// GetWords, DirectIndex
+#define OperationsPerFile 2
 
 #define ROOT 0
 #define TASK_ACK 101
@@ -20,7 +24,7 @@
 #define DIRECT_INDEX_LOCATION "/mnt/alpd/direct-index"
 
 int main(int argc, char ** argv) {
-    signal(SIGSEGV, handler);
+//    signal(SIGSEGV, handler);
 
     MPI_Init(&argc, &argv);
 
@@ -51,61 +55,107 @@ int main(int argc, char ** argv) {
             return 0;
         }
 
+        struct Operation * reduceOperations = (struct Operation *) malloc(df.numberOfFiles * sizeof(struct Operation));
+        int numberOfOperations = df.numberOfFiles;
 
+        // Create a list of operations that need to be done on the found files
+        for (fileIndex = 0; fileIndex < numberOfOperations; fileIndex++) {
+            reduceOperations[fileIndex].filename = df.filenames[fileIndex]->d_name;
+            reduceOperations[fileIndex].currentOperation = Available;
+        }
 
-        for(fileIndex = 0; fileIndex < df.numberOfFiles; fileIndex++) {
+        while(doableOperations(reduceOperations, numberOfOperations)) {
+            MPI_Request req;
+            int flag;
+            MPI_Status status;
             char * processedFile = (char *)malloc(FILENAME_MAX);
-            MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            MPI_Irecv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &req);
 
-            availableWorkers++;
-            int destination = status.MPI_SOURCE;
-            int receivedTag = status.MPI_TAG;
+            MPI_Test(&req, &flag, &status);
+            if (flag) {
+                int destination = status.MPI_SOURCE;
+                int receivedTag = status.MPI_TAG;
 
-            printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
+                printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
 
-            switch (receivedTag) {
-                default:
-                case TASK_ACK:
-                case TASK_INDEX_FILE: {
-                    printf("Sending file to be word-processed \"%s\"\n", df.filenames[fileIndex]->d_name);
+                switch (receivedTag) {
+                    case TASK_INDEX_FILE: {
+                        if (processedFile == NULL) {
+                            break;
+                        }
 
-                    MPI_Send(df.filenames[fileIndex]->d_name,
-                             strlen(df.filenames[fileIndex]->d_name) + 1,
-                             MPI_CHAR,
-                             destination,
-                             TASK_PROCESS_WORDS,
-                             MPI_COMM_WORLD);
+                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
+                        changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
+                    }
 
-                    break;
-                }
-                case TASK_PROCESS_WORDS: {
-                    if (processedFile == NULL) {
+                    default:
+                    case TASK_ACK: {
+                        struct Operation * nextOperation = getNextOperation(reduceOperations, numberOfOperations);
+                        if (!nextOperation) { printf("No next Operation found!\n"); break; }
+
+                        printf("Sending file to %d to be word-processed \"%s\"\n", destination,nextOperation->filename);
+
+                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations,
+                                                           nextOperation->filename, InProgress);
+                        MPI_Send(nextOperation->filename,
+                                 strlen(nextOperation->filename) + 1,
+                                 MPI_CHAR,
+                                 destination,
+                                 TASK_PROCESS_WORDS,
+                                 MPI_COMM_WORLD);
+
                         break;
                     }
 
-                    printf("Sending file to be indexed %s\n", processedFile);
+                    case TASK_PROCESS_WORDS: {
+                        if (processedFile == NULL) {
+                            break;
+                        }
 
-                    MPI_Send(processedFile,
-                             strlen(processedFile) + 1,
-                             MPI_CHAR,
-                             destination,
-                             TASK_INDEX_FILE,
-                             MPI_COMM_WORLD);
+                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Available);
+                        changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, GetWords);
 
-                    fileIndex--;
+                        struct Operation * nextOperation = getNextOperation(reduceOperations, numberOfOperations);
+                        if (!nextOperation) { break; }
 
-                    break;
+                        printf("Sending file to be indexed %s\n", nextOperation->filename);
+
+                        MPI_Send(nextOperation->filename,
+                                 strlen(nextOperation->filename) + 1,
+                                 MPI_CHAR,
+                                 destination,
+                                 TASK_INDEX_FILE,
+                                 MPI_COMM_WORLD);
+
+                        fileIndex--;
+
+                        break;
+                    }
                 }
             }
-
-            availableWorkers--;
         }
 
-        while (availableWorkers != NUMBER_OF_PROCESSES - 1) {
-            char processedFile[FILENAME_MAX];
-            MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, TASK_ACK, MPI_COMM_WORLD, &status);
-            availableWorkers++;
-        }
+        // -------------------------------------------------------------------------------------------------------------
+//        for(fileIndex = 0; fileIndex < df.numberOfFiles; fileIndex++) {
+//            char * processedFile = (char *)malloc(FILENAME_MAX);
+//            MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+//
+//            availableWorkers++;
+//            int destination = status.MPI_SOURCE;
+//            int receivedTag = status.MPI_TAG;
+//
+//            printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
+//
+//
+//
+//            availableWorkers--;
+//        }
+//
+//        while (availableWorkers != NUMBER_OF_PROCESSES - 1) {
+//            char processedFile[FILENAME_MAX];
+//            MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, TASK_ACK, MPI_COMM_WORLD, &status);
+//            availableWorkers++;
+//        }
 
         for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
             printf("SENDING KILL TO %d\n", processRank);
@@ -226,7 +276,7 @@ int main(int argc, char ** argv) {
                         if (strcmp(lastWord, word) == 0) {
                             wordCount++;
                         } else {
-                            printf("%s, %d\n", lastWord, wordCount);
+//                            printf("%s, %d\n", lastWord, wordCount);
 
                             fprintf(file, "%s %d\n", lastWord, wordCount);
 
