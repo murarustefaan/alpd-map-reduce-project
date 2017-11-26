@@ -24,7 +24,8 @@
 #define DIRECT_INDEX_LOCATION "/mnt/alpd/direct-index"
 
 int main(int argc, char ** argv) {
-//    signal(SIGSEGV, handler);
+    signal(SIGSEGV, handler);
+    signal(SIGKILL, handler);
 
     MPI_Init(&argc, &argv);
 
@@ -76,13 +77,13 @@ int main(int argc, char ** argv) {
                 int destination = status.MPI_SOURCE;
                 int receivedTag = status.MPI_TAG;
 
-                printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
 
                 switch (receivedTag) {
                     case TASK_INDEX_FILE: {
                         if (processedFile == NULL) {
                             break;
                         }
+                        printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
 
                         changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
@@ -111,6 +112,7 @@ int main(int argc, char ** argv) {
                         if (processedFile == NULL) {
                             break;
                         }
+                        printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
 
                         changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Available);
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, GetWords);
@@ -132,6 +134,10 @@ int main(int argc, char ** argv) {
                         break;
                     }
                 }
+            }
+
+            if (req != MPI_REQUEST_NULL) {
+                MPI_Cancel(&req);
             }
         }
 
@@ -208,6 +214,8 @@ int main(int argc, char ** argv) {
                             }
                         }
 
+//                        printf("%s\n", word);
+
                         numberOfWords++;
 
                         free(word);
@@ -276,7 +284,7 @@ int main(int argc, char ** argv) {
                         if (strcmp(lastWord, word) == 0) {
                             wordCount++;
                         } else {
-//                            printf("%s, %d\n", lastWord, wordCount);
+                            printf("%s, %d\n", lastWord, wordCount);
 
                             fprintf(file, "%s %d\n", lastWord, wordCount);
 
