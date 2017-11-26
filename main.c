@@ -275,11 +275,11 @@ int main(int argc, char ** argv) {
                     }
 
                     char * word;
-                    char * lastWord = strtok(df.filenames[0]->d_name, ".");
+                    char * lastWord = getWordFromFileName(df.filenames[2]->d_name);
                     int wordCount = 1;
 
-                    for(int i = 1; i < df.numberOfFiles; i++) {
-                        word = strtok(df.filenames[i]->d_name, ".");
+                    for(int i = 3; i < df.numberOfFiles; i++) {
+                        word = getWordFromFileName(df.filenames[i]->d_name);
 
                         if (strcmp(lastWord, word) == 0) {
                             wordCount++;

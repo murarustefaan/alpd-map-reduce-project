@@ -9,6 +9,8 @@ char * buildFilePath(char * directoryName, char * fileName);
 
 char * readWord(FILE * file, char * filename);
 
+char * getWordFromFileName(char * fileName);
+
 FILE * createFile(char * filename);
 
 #endif
