@@ -73,7 +73,7 @@ int main(int argc, char ** argv) {
             MPI_Irecv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &req);
 
             MPI_Test(&req, &flag, &status);
-            if (flag) {
+            if (flag == true) {
                 int destination = status.MPI_SOURCE;
                 int receivedTag = status.MPI_TAG;
 
@@ -134,9 +134,7 @@ int main(int argc, char ** argv) {
                         break;
                     }
                 }
-            }
-
-            if (req != MPI_REQUEST_NULL) {
+            } else {
                 MPI_Cancel(&req);
             }
         }
@@ -185,6 +183,7 @@ int main(int argc, char ** argv) {
                     FILE * file = fopen(fullPath, "r");
                     if (!file) {
                         printf("Process %d could not open file at \"%s\"!\n", CURRENT_RANK, fullPath);
+                        free(fullPath);
                         break;
                     }
 
@@ -192,6 +191,7 @@ int main(int argc, char ** argv) {
                     mkdir(tempDirName, 0777);
 
                     printf("Worker %d opened file \"%s\"\n", CURRENT_RANK, fullPath);
+                    free(fullPath);
                     char * word;
                     int numberOfWords = 0;
                     while ((word = readWord(file, fileName)) != NULL) {
@@ -209,6 +209,9 @@ int main(int argc, char ** argv) {
 
                             written = createFile(pathToWrite);
 
+                            free(fileToWrite);
+                            free(pathToWrite);
+
                             if (written != NULL) {
                                 break;
                             }
@@ -219,8 +222,6 @@ int main(int argc, char ** argv) {
                         numberOfWords++;
 
                         free(word);
-                        free(fileToWrite);
-                        free(pathToWrite);
 
                         if (written != NULL) {
                             fclose(written);
@@ -230,7 +231,6 @@ int main(int argc, char ** argv) {
                     printf("Slave %d found %d words in file \"%s\"\n", CURRENT_RANK, numberOfWords, fileName);
 
                     free(tempDirName);
-                    free(fullPath);
                     fclose(file);
 
                     MPI_Send(fileName,
