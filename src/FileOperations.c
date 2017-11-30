@@ -80,20 +80,6 @@ char * readWord(FILE * file) {
     return word;
 }
 
-char * getWordFromFileName(char * fileName) {
-    int len = strlen(fileName);
-    char * name = (char *)malloc(len * sizeof(char));
-    for (int i = 0; i < len; i++) {
-        if (fileName[i] == '.') {
-            break;
-        }
-
-        name[i] = fileName[i];
-    }
-
-    return name;
-}
-
 /**
  * Creates a file and return a pointer to it
  * @param filename The name of the file to be created

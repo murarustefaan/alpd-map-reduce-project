@@ -221,20 +221,17 @@ int main(int argc, char ** argv) {
                     }
 
                     char * word;
-                    char * lastWord = getWordFromFileName(df.filenames[2]->d_name);
+                    char * lastWord = strtok(df.filenames[2]->d_name, ".");
                     int wordCount = 1;
 
                     for(int i = 3; i < df.numberOfFiles; i++) {
-                        word = getWordFromFileName(df.filenames[i]->d_name);
+                        word = strtok(df.filenames[i]->d_name, ".");
 
                         if (strcmp(lastWord, word) == 0) {
                             wordCount++;
                         } else {
-                            printf("%s, %d\n", lastWord, wordCount);
-
                             fprintf(file, "%s %d\n", lastWord, wordCount);
 
-                            free(lastWord);
                             lastWord = word;
                             wordCount = 1;
                         }
