@@ -101,5 +101,7 @@ int getNextTaskForTag(enum OperationTag lastTag) {
             return TASK_PROCESS_WORDS;
         case GetWords:
             return TASK_INDEX_FILE;
+        case DirectIndex:
+            return TASK_REVERSE_INDEX_FILE;
     }
 }

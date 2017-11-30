@@ -72,8 +72,8 @@ int main(int argc, char ** argv) {
                     case TASK_INDEX_FILE: {
                         printf("%sROOT -> Worker %d direct-indexed file %s%s\n", KGRN, destination, processedFile, KNRM);
 
-                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
-                        changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
+                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Available);
+                        changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, DirectIndex);
 
                         break;
                     }
@@ -85,6 +85,12 @@ int main(int argc, char ** argv) {
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, GetWords);
 
                         break;
+                    }
+
+                    case TASK_REVERSE_INDEX_FILE: {
+                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
+                        changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
+                        printf("%sROOT -> Worker %d reverse-indexed file %s%s\n", KYEL, destination, processedFile, KNRM);
                     }
                 }
 
@@ -251,6 +257,19 @@ int main(int argc, char ** argv) {
                              MPI_CHAR,
                              ROOT,
                              TASK_INDEX_FILE,
+                             MPI_COMM_WORLD);
+
+                    break;
+                }
+
+                case TASK_REVERSE_INDEX_FILE: {
+                    printf("%sWorker %d -> Received file %s for reverse-indexing%s\n", KYEL, CURRENT_RANK, fileName, KNRM);
+
+                    MPI_Send(fileName,
+                             strlen(fileName) + 1,
+                             MPI_CHAR,
+                             ROOT,
+                             TASK_REVERSE_INDEX_FILE,
                              MPI_COMM_WORLD);
 
                     break;

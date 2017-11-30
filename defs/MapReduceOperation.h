@@ -19,6 +19,7 @@ enum OperationTag {
 #define TASK_ACK 101
 #define TASK_INDEX_FILE 102
 #define TASK_PROCESS_WORDS 103
+#define TASK_REVERSE_INDEX_FILE 104
 #define TASK_KILL 999
 
 /**
@@ -28,7 +29,6 @@ enum OperationTag {
  */
 struct Operation {
     char * filename;
-    int node;
     enum OperationTag lastOperation;
     enum OperationTag currentOperation;
 };
