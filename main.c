@@ -14,6 +14,7 @@
 #define FILES_DIRECTORY "input-files"
 #define TEMP_DIRNAME "/mnt/alpd/_temp"
 #define DIRECT_INDEX_LOCATION "/mnt/alpd/direct-index"
+#define REVERSE_INDEX_LOCATION "/mnt/alpd/reverse-index"
 
 int main(int argc, char ** argv) {
     signal(SIGSEGV, handler);
@@ -35,9 +36,11 @@ int main(int argc, char ** argv) {
 
         int tempDirectoryCreated = mkdir(TEMP_DIRNAME, 0777);
         int directIndexDirectoryCreated = mkdir(DIRECT_INDEX_LOCATION, 0777);
+        int reverseIndexDirectoryCreated = mkdir(REVERSE_INDEX_LOCATION, 0777);
         if (tempDirectoryCreated == -1 ||
-            directIndexDirectoryCreated == -1) {
-            printf("%s_temp or direct-index directory could not be created!%s\n", KRED, KNRM);
+            directIndexDirectoryCreated == -1 ||
+            reverseIndexDirectoryCreated == -1) {
+            printf("%s_temp, direct-index, or reverse-index directory could not be created!%s\n", KRED, KNRM);
             for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
                 printf("SENDING KILL TO %d\n", processRank);
                 MPI_Send(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD);
@@ -265,6 +268,36 @@ int main(int argc, char ** argv) {
                 case TASK_REVERSE_INDEX_FILE: {
                     printf("%sWorker %d -> Received file %s for reverse-indexing%s\n", KYEL, CURRENT_RANK, fileName, KNRM);
 
+                    char * filePath = buildFilePath(DIRECT_INDEX_LOCATION, fileName);
+                    FILE * directIndexFile = fopen(filePath, "r");
+                    if (!directIndexFile) {
+                        printf("%sWorker %d -> Could not read direct-index file %s%s\n", KRED, CURRENT_RANK, filePath, KNRM);
+
+                        MPI_Send(fileName,
+                                 strlen(fileName) + 1,
+                                 MPI_CHAR,
+                                 ROOT,
+                                 TASK_REVERSE_INDEX_FILE,
+                                 MPI_COMM_WORLD);
+                        break;
+                    }
+                    free(filePath);
+
+                    char * word;
+                    char * numberOfApparitions;
+                    while ((word = readWord(directIndexFile)) != NULL &&
+                        (numberOfApparitions = readWord(directIndexFile)) != NULL) {
+
+                        filePath = buildFilePath(REVERSE_INDEX_LOCATION, word);
+
+                        FILE * wordFile = fopen(filePath, "a");
+                        fprintf(wordFile, "%s %s\n", fileName, numberOfApparitions);
+                        fclose(wordFile);
+
+                        free(word);
+                        free(numberOfApparitions);
+                    }
+
                     MPI_Send(fileName,
                              strlen(fileName) + 1,
                              MPI_CHAR,
@@ -272,6 +305,7 @@ int main(int argc, char ** argv) {
                              TASK_REVERSE_INDEX_FILE,
                              MPI_COMM_WORLD);
 
+                    fclose(directIndexFile);
                     break;
                 }
             }

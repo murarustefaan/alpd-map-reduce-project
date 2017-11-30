@@ -65,6 +65,7 @@ void changeOperationCurrentStatusByName(struct Operation *operations, int number
 
     printf("%sNo operation with name %s could be found%s\n", KRED, operationName, KNRM);
 }
+
 /**
  * Change the status of the operation with the given name
  * @param operations The collections of operations
