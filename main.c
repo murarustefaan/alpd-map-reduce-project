@@ -241,6 +241,10 @@ int main(int argc, char ** argv) {
 
                     fclose(file);
 
+                    for (int i = 3; i < df.numberOfFiles; i++) {
+                        free(df.filenames[i]);
+                    }
+
                     MPI_Send(fileName,
                              strlen(fileName) + 1,
                              MPI_CHAR,
