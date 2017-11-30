@@ -51,7 +51,7 @@ int main(int argc, char ** argv) {
         // Create a list of operations that need to be done on the found files
         for (fileIndex = 0; fileIndex < numberOfOperations; fileIndex++) {
             reduceOperations[fileIndex].filename = df.filenames[fileIndex]->d_name;
-            reduceOperations[fileIndex].currentOperation = Available;
+            reduceOperations[fileIndex].currentOperation = reduceOperations[fileIndex].lastOperation = Available;
         }
 
         while(doableOperations(reduceOperations, numberOfOperations)) {
@@ -88,7 +88,7 @@ int main(int argc, char ** argv) {
                 }
 
                 struct Operation * nextOperation = getNextOperation(reduceOperations, numberOfOperations);
-                if (!nextOperation) { printf("No next Operation found!\n"); break; }
+                if (!nextOperation) { printf("No next Operation found!\n"); continue; }
 
                 changeOperationCurrentStatusByName(reduceOperations, numberOfOperations,
                                                    nextOperation->filename, InProgress);

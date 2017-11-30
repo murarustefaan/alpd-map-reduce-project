@@ -10,7 +10,8 @@
  */
 bool doableOperations(struct Operation * operations, int numberOfOperations) {
     for (int i = 0 ; i < numberOfOperations; i++) {
-        if ((operations + i)->currentOperation == Available &&
+        if (((operations + i)->currentOperation == Available ||
+                (operations + i)->currentOperation == InProgress) &&
                 (operations + i)->lastOperation != Done) {
             return true;
         }
@@ -29,7 +30,7 @@ bool doableOperations(struct Operation * operations, int numberOfOperations) {
 struct Operation * getNextOperation(struct Operation * operations, int numberOfOperations) {
     for (int i = 0; i < numberOfOperations; i++) {
         if ((operations + i)->currentOperation == Available &&
-            (operations + i)->lastOperation != Done) {
+                (operations + i)->lastOperation != Done) {
             printf("\x1B[31mOperation \"%s\" available\x1B[0m\n", (operations + i)->filename);
             return (operations + i);
         }
@@ -97,7 +98,6 @@ int getNextTaskForTag(enum OperationTag lastTag) {
     switch (lastTag) {
         default:
             return TASK_PROCESS_WORDS;
-
         case GetWords:
             return TASK_INDEX_FILE;
     }
