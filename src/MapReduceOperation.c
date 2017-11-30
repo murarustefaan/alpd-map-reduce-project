@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../defs/MapReduceOperation.h"
+#include "../defs/Logging.h"
 
 /**
  * Check if there are doable or undergoing operations
@@ -10,9 +11,10 @@
  */
 bool doableOperations(struct Operation * operations, int numberOfOperations) {
     for (int i = 0 ; i < numberOfOperations; i++) {
-        if (((operations + i)->currentOperation == Available ||
-                (operations + i)->currentOperation == InProgress) &&
-                (operations + i)->lastOperation != Done) {
+        struct Operation * op = operations + i;
+        if ((op->currentOperation == Available ||
+            op->currentOperation == InProgress) &&
+            op->lastOperation != Done) {
             return true;
         }
     }
@@ -29,14 +31,13 @@ bool doableOperations(struct Operation * operations, int numberOfOperations) {
  */
 struct Operation * getNextOperation(struct Operation * operations, int numberOfOperations) {
     for (int i = 0; i < numberOfOperations; i++) {
-        if ((operations + i)->currentOperation == Available &&
-                (operations + i)->lastOperation != Done) {
-            printf("\x1B[31mOperation \"%s\" available\x1B[0m\n", (operations + i)->filename);
+        struct Operation * op = operations + i;
+        if (op->currentOperation == Available &&
+            op->lastOperation != Done) {
             return (operations + i);
         }
     }
 
-    printf("No possible operations found! You might have an error in doubleOperations() function!\n");
     return NULL;
 }
 
@@ -62,7 +63,7 @@ void changeOperationCurrentStatusByName(struct Operation *operations, int number
         }
     }
 
-    printf("No operation with name %s could be found\n", operationName);
+    printf("%sNo operation with name %s could be found%s\n", KRED, operationName, KNRM);
 }
 /**
  * Change the status of the operation with the given name
@@ -86,7 +87,7 @@ void changeOperationLastStatusByName(struct Operation *operations, int numberOfO
         }
     }
 
-    printf("No operation with name %s could be found\n", operationName);
+    printf("%sNo operation with name %s could be found%s\n", KRED, operationName, KNRM);
 }
 
 /**

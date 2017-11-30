@@ -9,6 +9,7 @@
 #include "defs/FileOperations.h"
 #include "defs/Utils.h"
 #include "defs/MapReduceOperation.h"
+#include "defs/Logging.h"
 
 #define FILES_DIRECTORY "input-files"
 #define TEMP_DIRNAME "/mnt/alpd/_temp"
@@ -36,7 +37,7 @@ int main(int argc, char ** argv) {
         int directIndexDirectoryCreated = mkdir(DIRECT_INDEX_LOCATION, 0777);
         if (tempDirectoryCreated == -1 ||
             directIndexDirectoryCreated == -1) {
-            printf("_temp or direct-index directory could not be created!\n");
+            printf("%s_temp or direct-index directory could not be created!%s\n", KRED, KNRM);
             for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
                 printf("SENDING KILL TO %d\n", processRank);
                 MPI_Send(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD);
@@ -69,7 +70,7 @@ int main(int argc, char ** argv) {
                 // Handle the finish of a worker operation
                 switch (receivedTag) {
                     case TASK_INDEX_FILE: {
-                        printf("ROOT -> Worker %d direct-indexed file %s\n", destination, processedFile);
+                        printf("%sROOT -> Worker %d direct-indexed file %s%s\n", KGRN, destination, processedFile, KNRM);
 
                         changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
@@ -78,7 +79,7 @@ int main(int argc, char ** argv) {
                     }
 
                     case TASK_PROCESS_WORDS: {
-                        printf("ROOT -> Worker %d processed the words of file %s\n", destination, processedFile);
+                        printf("%sROOT -> Worker %d processed the words of file %s%s\n", KBLU, destination, processedFile, KNRM);
 
                         changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Available);
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, GetWords);
@@ -131,7 +132,7 @@ int main(int argc, char ** argv) {
 
                     FILE * file = fopen(fullPath, "r");
                     if (!file) {
-                        printf("Process %d could not open file at \"%s\"!\n", CURRENT_RANK, fullPath);
+                        printf("%sWorker %d -> Could not open file at \"%s\"!%s\n", KRED, CURRENT_RANK, fullPath, KNRM);
                         free(fullPath);
                         break;
                     }
@@ -139,7 +140,7 @@ int main(int argc, char ** argv) {
                     char * tempDirName = buildFilePath(TEMP_DIRNAME, fileName);
                     mkdir(tempDirName, 0777);
 
-                    printf("Worker %d opened file \"%s\"\n", CURRENT_RANK, fullPath);
+                    printf("%sWorker %d -> Opened file \"%s\"%s\n", KBLU, CURRENT_RANK, fullPath, KNRM);
                     free(fullPath);
                     char * word;
                     int numberOfWords = 0;
@@ -175,7 +176,7 @@ int main(int argc, char ** argv) {
                         }
                     }
 
-                    printf("Worker %d -> Found %d words in file \"%s\"\n", CURRENT_RANK, numberOfWords, fileName);
+                    printf("%sWorker %d -> Found %d words in file \"%s\"%s\n", KBLU, CURRENT_RANK, numberOfWords, fileName, KNRM);
 
                     free(tempDirName);
                     fclose(file);
@@ -192,7 +193,7 @@ int main(int argc, char ** argv) {
                     char * directoryPath = buildFilePath(TEMP_DIRNAME, fileName);
                     struct DirectoryFiles df = getFileNamesForDirectory(directoryPath);
                     if (df.numberOfFiles == 2) {
-                        printf("No words found in directory %s\n", directoryPath);
+                        printf("%sWorker %d -> No words found in directory %s%s\n", KRED, CURRENT_RANK, directoryPath, KNRM);
                         free(directoryPath);
 
                         MPI_Send(fileName,
@@ -209,7 +210,7 @@ int main(int argc, char ** argv) {
 
                     FILE * file = fopen(directIndexFilePath, "a");
                     if (!file) {
-                        printf("Could not write direct-index file %s\n", directIndexFilePath);
+                        printf("%sWorker %d -> Could not write direct-index file %s%s\n", KRED, CURRENT_RANK, directIndexFilePath, KNRM);
 
                         MPI_Send(fileName,
                                  strlen(fileName) + 1,
@@ -237,7 +238,7 @@ int main(int argc, char ** argv) {
                         }
                     }
 
-                    printf("Indexed file! %s\n", fileName);
+                    printf("%sWorker %d -> Indexed file %s%s\n", KGRN, CURRENT_RANK, fileName, KNRM);
 
                     fclose(file);
 

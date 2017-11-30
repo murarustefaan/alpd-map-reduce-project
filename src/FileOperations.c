@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "../defs/FileOperations.h"
+#include "../defs/Logging.h"
 
 /**
  * Get the number of files in a directory and their corresponding file names
@@ -89,7 +90,7 @@ FILE * createFile (char * filename) {
     FILE * f = fopen(filename, "w");
 
     if (!f) {
-        printf("Could not write file with name %s\n", filename);
+        printf("%sCould not write file with name %s%s\n", KRED, filename, KNRM);
         return NULL;
     }
 
