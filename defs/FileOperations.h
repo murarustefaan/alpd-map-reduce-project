@@ -7,7 +7,7 @@ struct DirectoryFiles getFileNamesForDirectory(char * directoryName);
 
 char * buildFilePath(char * directoryName, char * fileName);
 
-char * readWord(FILE * file, char * filename);
+char * readWord(FILE * file);
 
 char * getWordFromFileName(char * fileName);
 

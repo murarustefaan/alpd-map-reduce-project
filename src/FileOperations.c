@@ -54,7 +54,7 @@ bool isLetterOrNumber (char c) {
  * @param file The file stream to read from
  * @return A pointer to the read word
  */
-char * readWord(FILE * file, char * filename) {
+char * readWord(FILE * file) {
     char temp[255] = { '\0' };
     int i = 0;
     char c;

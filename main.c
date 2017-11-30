@@ -10,9 +10,6 @@
 #include "defs/Utils.h"
 #include "defs/MapReduceOperation.h"
 
-// GetWords, DirectIndex
-#define OperationsPerFile 2
-
 #define ROOT 0
 #define TASK_ACK 101
 #define TASK_INDEX_FILE 102
@@ -25,7 +22,6 @@
 
 int main(int argc, char ** argv) {
     signal(SIGSEGV, handler);
-    signal(SIGKILL, handler);
 
     MPI_Init(&argc, &argv);
 
@@ -41,7 +37,6 @@ int main(int argc, char ** argv) {
         // retrieve the list of files from the directory
         struct DirectoryFiles df = getFileNamesForDirectory(FILES_DIRECTORY);
         int fileIndex;
-        int availableWorkers = NUMBER_OF_PROCESSES - 1;
 
         int tempDirectoryCreated = mkdir(TEMP_DIRNAME, 0777);
         int directIndexDirectoryCreated = mkdir(DIRECT_INDEX_LOCATION, 0777);
@@ -136,30 +131,11 @@ int main(int argc, char ** argv) {
                 }
             } else {
                 MPI_Cancel(&req);
+                MPI_Request_free(&req);
             }
-        }
 
-        // -------------------------------------------------------------------------------------------------------------
-//        for(fileIndex = 0; fileIndex < df.numberOfFiles; fileIndex++) {
-//            char * processedFile = (char *)malloc(FILENAME_MAX);
-//            MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-//
-//            availableWorkers++;
-//            int destination = status.MPI_SOURCE;
-//            int receivedTag = status.MPI_TAG;
-//
-//            printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
-//
-//
-//
-//            availableWorkers--;
-//        }
-//
-//        while (availableWorkers != NUMBER_OF_PROCESSES - 1) {
-//            char processedFile[FILENAME_MAX];
-//            MPI_Recv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, TASK_ACK, MPI_COMM_WORLD, &status);
-//            availableWorkers++;
-//        }
+            free(processedFile);
+        }
 
         for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
             printf("SENDING KILL TO %d\n", processRank);
@@ -194,7 +170,7 @@ int main(int argc, char ** argv) {
                     free(fullPath);
                     char * word;
                     int numberOfWords = 0;
-                    while ((word = readWord(file, fileName)) != NULL) {
+                    while ((word = readWord(file)) != NULL) {
                         // Create a file with format "{fileName}.{timestamp}"
                         FILE * written;
                         char * pathToWrite;
@@ -216,8 +192,6 @@ int main(int argc, char ** argv) {
                                 break;
                             }
                         }
-
-//                        printf("%s\n", word);
 
                         numberOfWords++;
 
@@ -288,6 +262,7 @@ int main(int argc, char ** argv) {
 
                             fprintf(file, "%s %d\n", lastWord, wordCount);
 
+                            free(lastWord);
                             lastWord = word;
                             wordCount = 1;
                         }
