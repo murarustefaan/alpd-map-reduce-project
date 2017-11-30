@@ -30,6 +30,7 @@ struct Operation * getNextOperation(struct Operation * operations, int numberOfO
     for (int i = 0; i < numberOfOperations; i++) {
         if ((operations + i)->currentOperation == Available &&
             (operations + i)->lastOperation != Done) {
+            printf("\x1B[31mOperation \"%s\" available\x1B[0m\n", (operations + i)->filename);
             return (operations + i);
         }
     }
@@ -77,7 +78,7 @@ void changeOperationLastStatusByName(struct Operation *operations, int numberOfO
         operation = operations + i;
 
         if (strcasecmp(operation->filename, operationName) == 0) {
-            operation->currentOperation = lastStatus;
+            operation->lastOperation = lastStatus;
 
             printf("Changed operation with name %s lastStatus to %d\n", operationName, lastStatus);
             return;
@@ -85,4 +86,19 @@ void changeOperationLastStatusByName(struct Operation *operations, int numberOfO
     }
 
     printf("No operation with name %s could be found\n", operationName);
+}
+
+/**
+ * Return the next task code to send to a worker
+ * @param lastTag The last operation tag
+ * @return The next task code to send to a worker
+ */
+int getNextTaskForTag(enum OperationTag lastTag) {
+    switch (lastTag) {
+        default:
+            return TASK_PROCESS_WORDS;
+
+        case GetWords:
+            return TASK_INDEX_FILE;
+    }
 }

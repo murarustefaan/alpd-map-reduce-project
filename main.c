@@ -10,12 +10,6 @@
 #include "defs/Utils.h"
 #include "defs/MapReduceOperation.h"
 
-#define ROOT 0
-#define TASK_ACK 101
-#define TASK_INDEX_FILE 102
-#define TASK_PROCESS_WORDS 103
-#define TASK_KILL 999
-
 #define FILES_DIRECTORY "input-files"
 #define TEMP_DIRNAME "/mnt/alpd/_temp"
 #define DIRECT_INDEX_LOCATION "/mnt/alpd/direct-index"
@@ -72,63 +66,42 @@ int main(int argc, char ** argv) {
                 int destination = status.MPI_SOURCE;
                 int receivedTag = status.MPI_TAG;
 
-
+                // Handle the finish of a worker operation
                 switch (receivedTag) {
                     case TASK_INDEX_FILE: {
-                        if (processedFile == NULL) {
-                            break;
-                        }
-                        printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
+                        printf("ROOT -> Worker %d direct-indexed file %s\n", destination, processedFile);
 
                         changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, Done);
-                    }
-
-                    default:
-                    case TASK_ACK: {
-                        struct Operation * nextOperation = getNextOperation(reduceOperations, numberOfOperations);
-                        if (!nextOperation) { printf("No next Operation found!\n"); break; }
-
-                        printf("Sending file to %d to be word-processed \"%s\"\n", destination,nextOperation->filename);
-
-                        changeOperationCurrentStatusByName(reduceOperations, numberOfOperations,
-                                                           nextOperation->filename, InProgress);
-                        MPI_Send(nextOperation->filename,
-                                 strlen(nextOperation->filename) + 1,
-                                 MPI_CHAR,
-                                 destination,
-                                 TASK_PROCESS_WORDS,
-                                 MPI_COMM_WORLD);
 
                         break;
                     }
 
                     case TASK_PROCESS_WORDS: {
-                        if (processedFile == NULL) {
-                            break;
-                        }
-                        printf("ROOT -> Received filename %s from %d on tag %d\n", processedFile, destination, receivedTag);
+                        printf("ROOT -> Worker %d processed the words of file %s\n", destination, processedFile);
 
                         changeOperationCurrentStatusByName(reduceOperations, numberOfOperations, processedFile, Available);
                         changeOperationLastStatusByName(reduceOperations, numberOfOperations, processedFile, GetWords);
 
-                        struct Operation * nextOperation = getNextOperation(reduceOperations, numberOfOperations);
-                        if (!nextOperation) { break; }
-
-                        printf("Sending file to be indexed %s\n", nextOperation->filename);
-
-                        MPI_Send(nextOperation->filename,
-                                 strlen(nextOperation->filename) + 1,
-                                 MPI_CHAR,
-                                 destination,
-                                 TASK_INDEX_FILE,
-                                 MPI_COMM_WORLD);
-
-                        fileIndex--;
-
                         break;
                     }
                 }
+
+                struct Operation * nextOperation = getNextOperation(reduceOperations, numberOfOperations);
+                if (!nextOperation) { printf("No next Operation found!\n"); break; }
+
+                changeOperationCurrentStatusByName(reduceOperations, numberOfOperations,
+                                                   nextOperation->filename, InProgress);
+                int nextTask = getNextTaskForTag(nextOperation->lastOperation);
+
+                printf("ROOT -> Sending file %s to %d on task %d\n", nextOperation->filename, destination, nextTask);
+
+                MPI_Send(nextOperation->filename,
+                         strlen(nextOperation->filename) + 1,
+                         MPI_CHAR,
+                         destination,
+                         nextTask,
+                         MPI_COMM_WORLD);
             } else {
                 MPI_Cancel(&req);
                 MPI_Request_free(&req);
@@ -202,7 +175,7 @@ int main(int argc, char ** argv) {
                         }
                     }
 
-                    printf("Slave %d found %d words in file \"%s\"\n", CURRENT_RANK, numberOfWords, fileName);
+                    printf("Worker %d -> Found %d words in file \"%s\"\n", CURRENT_RANK, numberOfWords, fileName);
 
                     free(tempDirName);
                     fclose(file);
@@ -213,13 +186,12 @@ int main(int argc, char ** argv) {
                              ROOT,
                              TASK_PROCESS_WORDS,
                              MPI_COMM_WORLD);
-                    printf("Slave %d sent word to ROOT that he finished %s on tag %d\n", CURRENT_RANK, fileName, TASK_PROCESS_WORDS);
                     break;
                 }
                 case TASK_INDEX_FILE: {
                     char * directoryPath = buildFilePath(TEMP_DIRNAME, fileName);
                     struct DirectoryFiles df = getFileNamesForDirectory(directoryPath);
-                    if (df.numberOfFiles == 0) {
+                    if (df.numberOfFiles == 2) {
                         printf("No words found in directory %s\n", directoryPath);
                         free(directoryPath);
 

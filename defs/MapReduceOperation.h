@@ -15,6 +15,12 @@ enum OperationTag {
     Done
 };
 
+#define ROOT 0
+#define TASK_ACK 101
+#define TASK_INDEX_FILE 102
+#define TASK_PROCESS_WORDS 103
+#define TASK_KILL 999
+
 /**
  * Struct to hold the name of the file that is processed,
  * The node that did the last processing,
@@ -36,5 +42,7 @@ void changeOperationCurrentStatusByName(struct Operation *operations, int number
 
 void changeOperationLastStatusByName(struct Operation *operations, int numberOfOperations, char *operationName,
                                         enum OperationTag lastStatus);
+
+int getNextTaskForTag(enum OperationTag lastTag);
 
 #endif
