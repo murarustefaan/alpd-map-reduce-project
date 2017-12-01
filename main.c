@@ -185,7 +185,7 @@ int main(int argc, char ** argv) {
                             char timestamp[42];
                             sprintf(timestamp, "%ld", getCurrentTimestamp());
                             fileToWrite = (char *)malloc(strlen(timestamp) + strlen(word) + 2);
-                            sprintf(fileToWrite, "%s.%s", word, timestamp);
+                            sprintf(fileToWrite, "%s_%s", word, timestamp);
                             pathToWrite = buildFilePath(tempDirName, fileToWrite);
 
                             written = createFile(pathToWrite);
@@ -258,11 +258,11 @@ int main(int argc, char ** argv) {
                     }
 
                     char * word;
-                    char * lastWord = strtok(df.filenames[2]->d_name, ".");
+                    char * lastWord = strtok(df.filenames[2]->d_name, "_");
                     int wordCount = 1;
 
                     for(int i = 3; i < df.numberOfFiles; i++) {
-                        word = strtok(df.filenames[i]->d_name, ".");
+                        word = strtok(df.filenames[i]->d_name, "_");
 
                         if (strcmp(lastWord, word) == 0) {
                             wordCount++;
@@ -319,12 +319,17 @@ int main(int argc, char ** argv) {
                     while ((word = readWord(directIndexFile)) != NULL &&
                         (numberOfApparitions = readWord(directIndexFile)) != NULL) {
 
-                        filePath = buildFilePath(REVERSE_INDEX_LOCATION, word);
+                        char * wordPath = buildFilePath(REVERSE_INDEX_LOCATION, word);
+                        mkdir(wordPath, 0777);
+
+                        char fileNameToWrite[FILENAME_MAX];
+                        sprintf(fileNameToWrite, "%s_%s_%ld", fileName, numberOfApparitions, getCurrentTimestamp());
+                        filePath = buildFilePath(wordPath, fileNameToWrite);
 
                         FILE * wordFile = fopen(filePath, "a");
-                        fprintf(wordFile, "%s %s\n", fileName, numberOfApparitions);
                         fclose(wordFile);
 
+                        free(wordPath);
                         free(word);
                         free(numberOfApparitions);
                     }
