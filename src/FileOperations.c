@@ -1,3 +1,10 @@
+/**
+ * Function library used to facilitate the usage of files and directories
+ *
+ * @author Stefan Muraru
+ * @date 01.12.2017
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

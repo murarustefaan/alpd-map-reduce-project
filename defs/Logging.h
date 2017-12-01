@@ -1,3 +1,10 @@
+/**
+ * Header library used for defining logging constants
+ *
+ * @author Stefan Muraru
+ * @date 01.12.2017
+ */
+
 #ifndef MAPREDUCE_V2_LOGGING_H
 #define MAPREDUCE_V2_LOGGING_H
 

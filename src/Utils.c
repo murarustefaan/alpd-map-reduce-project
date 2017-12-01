@@ -1,3 +1,10 @@
+/**
+ * Header library that contains functions used for basic tasks
+ *
+ * @author Stefan Muraru
+ * @date 01.12.2017
+ */
+
 #include "../defs/Utils.h"
 #include <sys/time.h>
 #include <stdlib.h>

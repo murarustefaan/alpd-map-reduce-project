@@ -1,3 +1,10 @@
+/**
+ * Header library used for handling MapReduce operations and defining operation types
+ *
+ * @author Stefan Muraru
+ * @date 01.12.2017
+ */
+
 #ifndef MAPREDUCE_V2_MAPREDUCEOPERATION_H
 #define MAPREDUCE_V2_MAPREDUCEOPERATION_H
 
@@ -14,6 +21,7 @@ enum OperationTag {
     Done
 };
 
+// Tags for MPI process communication
 #define ROOT 0
 #define TASK_ACK 101
 #define TASK_INDEX_FILE 102

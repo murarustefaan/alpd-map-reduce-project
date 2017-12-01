@@ -1,3 +1,10 @@
+/**
+ * Function library used for handling error signals
+ *
+ * @author Stefan Muraru
+ * @date 01.12.2017
+ */
+
 #include <signal.h>
 #include <execinfo.h>
 #include <stdio.h>

@@ -1,3 +1,10 @@
+/**
+ * Function library used for handling MapReduce Operations
+ *
+ * @author Stefan Muraru
+ * @date 01.12.2017
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include "../defs/MapReduceOperation.h"
