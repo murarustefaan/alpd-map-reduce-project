@@ -136,15 +136,24 @@ int main(int argc, char ** argv) {
         int tag = 0;
         char * fileName;
 
-        MPI_Status stat;
         MPI_Request ack_req;
-
         MPI_Isend(NULL, 0, MPI_CHAR, ROOT, TASK_ACK, MPI_COMM_WORLD, &ack_req);
-        MPI_Wait(&ack_req, &stat);
+        MPI_Wait(&ack_req, &status);
 
         do {
+            int messageReceived;
+            MPI_Request taskRequest;
+
             fileName = (char *)malloc(FILENAME_MAX);
-            MPI_Recv(fileName, FILENAME_MAX, MPI_CHAR, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            MPI_Irecv(fileName, FILENAME_MAX, MPI_CHAR, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &taskRequest);
+
+            MPI_Test(&taskRequest, &messageReceived, &status);
+            if (messageReceived == false) {
+                free(fileName);
+                MPI_Cancel(&taskRequest);
+                MPI_Request_free(&taskRequest);
+                continue;
+            }
 
             switch(status.MPI_TAG) {
                 case TASK_PROCESS_WORDS: {
