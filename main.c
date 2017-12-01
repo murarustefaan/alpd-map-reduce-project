@@ -43,7 +43,9 @@ int main(int argc, char ** argv) {
             printf("%s_temp, direct-index, or reverse-index directory could not be created!%s\n", KRED, KNRM);
             for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
                 printf("SENDING KILL TO %d\n", processRank);
-                MPI_Send(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD);
+
+                MPI_Request kill_req;
+                MPI_Isend(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD, &kill_req);
             }
             MPI_Finalize();
             return 0;
@@ -106,12 +108,14 @@ int main(int argc, char ** argv) {
 
                 printf("ROOT -> Sending file %s to %d on task %d\n", nextOperation->filename, destination, nextTask);
 
-                MPI_Send(nextOperation->filename,
+                MPI_Request task_req;
+                MPI_Isend(nextOperation->filename,
                          strlen(nextOperation->filename) + 1,
                          MPI_CHAR,
                          destination,
                          nextTask,
-                         MPI_COMM_WORLD);
+                         MPI_COMM_WORLD,
+                         &task_req);
             } else {
                 MPI_Cancel(&req);
                 MPI_Request_free(&req);
@@ -122,14 +126,21 @@ int main(int argc, char ** argv) {
 
         for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
             printf("SENDING KILL TO %d\n", processRank);
-            MPI_Send(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD);
+
+            MPI_Request kill_req;
+            MPI_Isend(NULL, 0, MPI_CHAR, processRank, TASK_KILL, MPI_COMM_WORLD, &kill_req);
         }
     }
 
     if (CURRENT_RANK != ROOT) {
         int tag = 0;
         char * fileName;
-        MPI_Send(NULL, 0, MPI_CHAR, ROOT, TASK_ACK, MPI_COMM_WORLD);
+
+        MPI_Status stat;
+        MPI_Request ack_req;
+
+        MPI_Isend(NULL, 0, MPI_CHAR, ROOT, TASK_ACK, MPI_COMM_WORLD, &ack_req);
+        MPI_Wait(&ack_req, &stat);
 
         do {
             fileName = (char *)malloc(FILENAME_MAX);
@@ -137,6 +148,8 @@ int main(int argc, char ** argv) {
 
             switch(status.MPI_TAG) {
                 case TASK_PROCESS_WORDS: {
+                    MPI_Request req;
+
                     char * fullPath = buildFilePath(FILES_DIRECTORY, fileName);
 
                     FILE * file = fopen(fullPath, "r");
@@ -190,27 +203,31 @@ int main(int argc, char ** argv) {
                     free(tempDirName);
                     fclose(file);
 
-                    MPI_Send(fileName,
+                    MPI_Isend(fileName,
                              strlen(fileName) + 1,
                              MPI_CHAR,
                              ROOT,
                              TASK_PROCESS_WORDS,
-                             MPI_COMM_WORLD);
+                             MPI_COMM_WORLD,
+                             &req);
                     break;
                 }
                 case TASK_INDEX_FILE: {
+                    MPI_Request req;
+
                     char * directoryPath = buildFilePath(TEMP_DIRNAME, fileName);
                     struct DirectoryFiles df = getFileNamesForDirectory(directoryPath);
                     if (df.numberOfFiles == 2) {
                         printf("%sWorker %d -> No words found in directory %s%s\n", KRED, CURRENT_RANK, directoryPath, KNRM);
                         free(directoryPath);
 
-                        MPI_Send(fileName,
+                        MPI_Isend(fileName,
                                  strlen(fileName) + 1,
                                  MPI_CHAR,
                                  ROOT,
                                  TASK_INDEX_FILE,
-                                 MPI_COMM_WORLD);
+                                 MPI_COMM_WORLD,
+                                 &req);
                         break;
                     }
 
@@ -221,12 +238,13 @@ int main(int argc, char ** argv) {
                     if (!file) {
                         printf("%sWorker %d -> Could not write direct-index file %s%s\n", KRED, CURRENT_RANK, directIndexFilePath, KNRM);
 
-                        MPI_Send(fileName,
+                        MPI_Isend(fileName,
                                  strlen(fileName) + 1,
                                  MPI_CHAR,
                                  ROOT,
                                  TASK_INDEX_FILE,
-                                 MPI_COMM_WORLD);
+                                 MPI_COMM_WORLD,
+                                 &req);
                         break;
                     }
 
@@ -255,17 +273,20 @@ int main(int argc, char ** argv) {
                         free(df.filenames[i]);
                     }
 
-                    MPI_Send(fileName,
+                    MPI_Isend(fileName,
                              strlen(fileName) + 1,
                              MPI_CHAR,
                              ROOT,
                              TASK_INDEX_FILE,
-                             MPI_COMM_WORLD);
+                             MPI_COMM_WORLD,
+                             &req);
 
                     break;
                 }
 
                 case TASK_REVERSE_INDEX_FILE: {
+                    MPI_Request req;
+
                     printf("%sWorker %d -> Received file %s for reverse-indexing%s\n", KYEL, CURRENT_RANK, fileName, KNRM);
 
                     char * filePath = buildFilePath(DIRECT_INDEX_LOCATION, fileName);
@@ -273,12 +294,13 @@ int main(int argc, char ** argv) {
                     if (!directIndexFile) {
                         printf("%sWorker %d -> Could not read direct-index file %s%s\n", KRED, CURRENT_RANK, filePath, KNRM);
 
-                        MPI_Send(fileName,
+                        MPI_Isend(fileName,
                                  strlen(fileName) + 1,
                                  MPI_CHAR,
                                  ROOT,
                                  TASK_REVERSE_INDEX_FILE,
-                                 MPI_COMM_WORLD);
+                                 MPI_COMM_WORLD,
+                                 &req);
                         break;
                     }
                     free(filePath);
@@ -298,12 +320,13 @@ int main(int argc, char ** argv) {
                         free(numberOfApparitions);
                     }
 
-                    MPI_Send(fileName,
+                    MPI_Isend(fileName,
                              strlen(fileName) + 1,
                              MPI_CHAR,
                              ROOT,
                              TASK_REVERSE_INDEX_FILE,
-                             MPI_COMM_WORLD);
+                             MPI_COMM_WORLD,
+                             &req);
 
                     fclose(directIndexFile);
                     break;
