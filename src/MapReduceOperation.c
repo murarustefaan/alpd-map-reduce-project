@@ -57,8 +57,6 @@ void changeOperationCurrentStatusByName(struct Operation *operations, int number
 
         if (strcasecmp(operation->filename, operationName) == 0) {
             operation->currentOperation = currentStatus;
-
-            printf("Changed operation with name %s currentStatus to %d\n", operationName, currentStatus);
             return;
         }
     }
@@ -82,8 +80,6 @@ void changeOperationLastStatusByName(struct Operation *operations, int numberOfO
 
         if (strcasecmp(operation->filename, operationName) == 0) {
             operation->lastOperation = lastStatus;
-
-            printf("Changed operation with name %s lastStatus to %d\n", operationName, lastStatus);
             return;
         }
     }
@@ -105,4 +101,20 @@ int getNextTaskForTag(enum OperationTag lastTag) {
         case DirectIndex:
             return TASK_REVERSE_INDEX_FILE;
     }
+}
+
+/**
+ * Get the next available worker from a given collection
+ * @param workers The array of workers
+ * @param numberOfWorkers The number of workers
+ * @return The process id of the next available worker
+ */
+int getAvailableWorkerId(bool workers[], int numberOfWorkers) {
+    for (int i = 1; i < numberOfWorkers - 1; i++) {
+        if (workers[i] == true) {
+            return i;
+        }
+    }
+
+    return 0;
 }

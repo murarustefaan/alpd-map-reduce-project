@@ -14,6 +14,7 @@
 #define FILES_DIRECTORY "input-files"
 #define TEMP_DIRNAME "/mnt/alpd/_temp"
 #define DIRECT_INDEX_LOCATION "/mnt/alpd/direct-index"
+#define REVERSE_INDEX_TEMP_LOCATION "/mnt/alpd/reverse-index-temporary"
 #define REVERSE_INDEX_LOCATION "/mnt/alpd/reverse-index"
 
 int main(int argc, char ** argv) {
@@ -36,11 +37,13 @@ int main(int argc, char ** argv) {
 
         int tempDirectoryCreated = mkdir(TEMP_DIRNAME, 0777);
         int directIndexDirectoryCreated = mkdir(DIRECT_INDEX_LOCATION, 0777);
+        int reverseIndexTempDirectoryCreated = mkdir(REVERSE_INDEX_TEMP_LOCATION, 0777);
         int reverseIndexDirectoryCreated = mkdir(REVERSE_INDEX_LOCATION, 0777);
         if (tempDirectoryCreated == -1 ||
             directIndexDirectoryCreated == -1 ||
+            reverseIndexTempDirectoryCreated == -1 ||
             reverseIndexDirectoryCreated == -1) {
-            printf("%s_temp, direct-index, or reverse-index directory could not be created!%s\n", KRED, KNRM);
+            printf("%s_temp, direct-index, reverse-index temporary or final directory could not be created!%s\n", KRED, KNRM);
             for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
                 printf("SENDING KILL TO %d\n", processRank);
 
@@ -60,10 +63,11 @@ int main(int argc, char ** argv) {
             reduceOperations[fileIndex].currentOperation = reduceOperations[fileIndex].lastOperation = Available;
         }
 
+        MPI_Request req;
+        int flag;
+        MPI_Status status;
+
         while(doableOperations(reduceOperations, numberOfOperations)) {
-            MPI_Request req;
-            int flag;
-            MPI_Status status;
             char * processedFile = (char *)malloc(FILENAME_MAX);
             MPI_Irecv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &req);
 
@@ -123,6 +127,55 @@ int main(int argc, char ** argv) {
 
             free(processedFile);
         }
+
+        free(reduceOperations);
+        printf("Root -> GetWords, DirectIndexing and the first stage of ReverseIndexing are finished\n");
+        for (int i = 0; i < df.numberOfFiles; i++) {
+            free(df.filenames[i]);
+        }
+
+        int numberOfReverseIndexedWords = 0;
+        df = getFileNamesForDirectory(REVERSE_INDEX_TEMP_LOCATION);
+
+        bool availableWorkers[NUMBER_OF_PROCESSES];
+        for (int i = 1; i < NUMBER_OF_PROCESSES; i++) {
+            availableWorkers[i] = true;
+        }
+
+        printf("Root -> Found a number of %d words\nRoot -> Beginning reverse-indexing\n", df.numberOfFiles);
+
+        while(numberOfReverseIndexedWords != df.numberOfFiles) {
+            char processedFile[FILENAME_MAX];
+            MPI_Irecv(processedFile, FILENAME_MAX, MPI_CHAR, MPI_ANY_SOURCE, TASK_REVERSE_INDEX_WORD, MPI_COMM_WORLD, &req);
+            MPI_Test(&req, &flag, &status);
+
+            if (flag == true) {
+                availableWorkers[status.MPI_SOURCE] = true;
+            } else {
+                MPI_Cancel(&req);
+                MPI_Request_free(&req);
+            }
+
+            int availableWorkerId = 0;
+            if ((availableWorkerId = getAvailableWorkerId(availableWorkers, NUMBER_OF_PROCESSES)) != 0) {
+                MPI_Isend(df.filenames[numberOfReverseIndexedWords]->d_name,
+                        strlen(df.filenames[numberOfReverseIndexedWords]->d_name) + 1,
+                        MPI_CHAR,
+                        availableWorkerId,
+                        TASK_REVERSE_INDEX_WORD,
+                        MPI_COMM_WORLD,
+                        &req);
+
+                availableWorkers[availableWorkerId] = false;
+                numberOfReverseIndexedWords++;
+            }
+        }
+
+        for (int i = 0; i < df.numberOfFiles; i++) {
+            free(df.filenames[i]);
+        }
+
+        printf("%sROOT -> Finished reverse indexing%s\n", KMAG, KNRM);
 
         for(int processRank = 1; processRank < NUMBER_OF_PROCESSES; processRank++) {
             printf("SENDING KILL TO %d\n", processRank);
@@ -226,7 +279,7 @@ int main(int argc, char ** argv) {
 
                     char * directoryPath = buildFilePath(TEMP_DIRNAME, fileName);
                     struct DirectoryFiles df = getFileNamesForDirectory(directoryPath);
-                    if (df.numberOfFiles == 2) {
+                    if (df.numberOfFiles == 0) {
                         printf("%sWorker %d -> No words found in directory %s%s\n", KRED, CURRENT_RANK, directoryPath, KNRM);
                         free(directoryPath);
 
@@ -258,10 +311,10 @@ int main(int argc, char ** argv) {
                     }
 
                     char * word;
-                    char * lastWord = strtok(df.filenames[2]->d_name, "_");
+                    char * lastWord = strtok(df.filenames[0]->d_name, "_");
                     int wordCount = 1;
 
-                    for(int i = 3; i < df.numberOfFiles; i++) {
+                    for(int i = 0; i < df.numberOfFiles; i++) {
                         word = strtok(df.filenames[i]->d_name, "_");
 
                         if (strcmp(lastWord, word) == 0) {
@@ -278,7 +331,7 @@ int main(int argc, char ** argv) {
 
                     fclose(file);
 
-                    for (int i = 3; i < df.numberOfFiles; i++) {
+                    for (int i = 0; i < df.numberOfFiles; i++) {
                         free(df.filenames[i]);
                     }
 
@@ -319,7 +372,7 @@ int main(int argc, char ** argv) {
                     while ((word = readWord(directIndexFile)) != NULL &&
                         (numberOfApparitions = readWord(directIndexFile)) != NULL) {
 
-                        char * wordPath = buildFilePath(REVERSE_INDEX_LOCATION, word);
+                        char * wordPath = buildFilePath(REVERSE_INDEX_TEMP_LOCATION, word);
                         mkdir(wordPath, 0777);
 
                         char fileNameToWrite[FILENAME_MAX];
@@ -343,6 +396,49 @@ int main(int argc, char ** argv) {
                              &req);
 
                     fclose(directIndexFile);
+                    break;
+                }
+
+                case TASK_REVERSE_INDEX_WORD: {
+                    MPI_Request req;
+                    char * wordPath = buildFilePath(REVERSE_INDEX_TEMP_LOCATION, fileName);
+                    struct DirectoryFiles df = getFileNamesForDirectory(wordPath);
+
+                    FILE * wordFile = fopen(buildFilePath(REVERSE_INDEX_LOCATION, fileName), "a");
+                    if (!wordFile) {
+                        printf("%sWorker %d -> Could not write reverse-index file %s%s\n", KRED, CURRENT_RANK, fileName, KNRM);
+
+                        MPI_Isend(fileName,
+                                  strlen(fileName) + 1,
+                                  MPI_CHAR,
+                                  ROOT,
+                                  TASK_REVERSE_INDEX_FILE,
+                                  MPI_COMM_WORLD,
+                                  &req);
+                        break;
+                    }
+
+                    for (int i = 0; i < df.numberOfFiles; i++) {
+                        char *parentFile = strtok(df.filenames[i]->d_name, "_");
+                        char *numberOfApparitions = strtok(NULL, "_");
+                        fprintf(wordFile, "%s %s\n", parentFile, numberOfApparitions);
+                    }
+
+                    for (int i = 0; i < df.numberOfFiles; i++) {
+                        free(df.filenames[i]);
+                    }
+
+                    fclose(wordFile);
+                    free(wordPath);
+
+                    MPI_Isend(fileName,
+                              strlen(fileName) + 1,
+                              MPI_CHAR,
+                              ROOT,
+                              TASK_REVERSE_INDEX_WORD,
+                              MPI_COMM_WORLD,
+                              &req);
+
                     break;
                 }
             }

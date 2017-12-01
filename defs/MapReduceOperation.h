@@ -9,7 +9,6 @@
 enum OperationTag {
     GetWords,
     DirectIndex,
-    ReverseIndex,
     Available,
     InProgress,
     Done
@@ -20,6 +19,7 @@ enum OperationTag {
 #define TASK_INDEX_FILE 102
 #define TASK_PROCESS_WORDS 103
 #define TASK_REVERSE_INDEX_FILE 104
+#define TASK_REVERSE_INDEX_WORD 105
 #define TASK_KILL 999
 
 /**
@@ -44,5 +44,7 @@ void changeOperationLastStatusByName(struct Operation *operations, int numberOfO
                                         enum OperationTag lastStatus);
 
 int getNextTaskForTag(enum OperationTag lastTag);
+
+int getAvailableWorkerId(bool workers[], int numberOfWorkers);
 
 #endif

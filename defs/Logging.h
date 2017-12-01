@@ -12,7 +12,10 @@
 // Word processing
 #define KBLU  "\x1B[34m"
 
-// Reverse indexing
+// Reverse indexing temp
 #define KYEL  "\x1B[33m"
+
+// Reverse indexing final
+#define KMAG  "\x1B[35m"
 
 #endif
